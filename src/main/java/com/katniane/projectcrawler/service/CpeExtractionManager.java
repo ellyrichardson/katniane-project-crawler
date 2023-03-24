@@ -1,4 +1,4 @@
-package com.katniane.projectcrawler.utility;
+package com.katniane.projectcrawler.service;
 
 import java.io.File;
 import java.util.Collections;
@@ -20,7 +20,7 @@ import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.project.ProjectDependenciesResolver;
 
 @Service
-public class CpeExtractor {
+public class CpeExtractionManager implements CpeExtractionManagerService {
 	
 	public List<String> extractCpeForJar(String jarDir) {
         File jarFile = new File(jarDir);

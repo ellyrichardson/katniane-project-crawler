@@ -10,29 +10,34 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.katniane.projectcrawler.coordination.CrawlerProjectConfigurationProcessorService;
 import com.katniane.projectcrawler.dataaccesslayer.CrawlerProjectRepository;
 import com.katniane.projectcrawler.dataaccesslayer.SystemConfigurationRepository;
 import com.katniane.projectcrawler.domain.CrawlerProject;
 import com.katniane.projectcrawler.domain.SystemConfiguration;
-import com.katniane.projectcrawler.utility.CpeExtractor;
-import com.katniane.projectcrawler.utility.SftpHelper;
+import com.katniane.projectcrawler.service.CpeExtractionManagerService;
+import com.katniane.projectcrawler.service.CpeExtractionManager;
+import com.katniane.projectcrawler.service.SftpProcessManagerService;
+import com.katniane.projectcrawler.service.SftpProcessManager;
 
 @RestController
+@RequestMapping(value = "/")
 public class ProjectCrawlerController {
 	
 	@Autowired
 	private CrawlerProjectRepository crawlerProjectRepository;
 	
 	@Autowired
-	private SystemConfigurationRepository systemConfigRepository;
+	private CpeExtractionManagerService cpeExtractor;
 	
 	@Autowired
-	private CpeExtractor cpeExtractor;
+	private SftpProcessManagerService sftpProcessManager;
 	
 	@Autowired
-	private SftpHelper sftpHelper;
+	private CrawlerProjectConfigurationProcessorService crawlerProjectConfigurationProcessor;
 	
 	private static final Logger LOG = LoggerFactory.getLogger(ProjectCrawlerController.class);
 	
@@ -40,54 +45,48 @@ public class ProjectCrawlerController {
 	public void scanRequest(@PathVariable String projectType, @PathVariable Integer projectId) {
 		LOG.info("Received scan request for project {} of type {}", projectId, projectType);
 		try {
-			evaluateRequestType(projectType, projectId);
+			SystemConfiguration requestTypeConfig = crawlerProjectConfigurationProcessor.retrieveConfigForCrawlerProjectType(projectType, projectId);
+			
+			CrawlerProject crawlerProject = crawlerProjectRepository.findById(projectId).get();
+			if (crawlerProject != null ) {
+				handleCpeExtractionForJar(crawlerProject, requestTypeConfig);
+			} else {
+				// Throw error here or raise alert
+				LOG.error("Crawler Project of id {} is not found", projectId);
+			}
+			
 		} catch (FileSystemException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		
 	}
 	
-	private void evaluateRequestType(String projectType, Integer projectId) throws FileSystemException {
-		// NOTE: Only jar files are supported right now
-		if (projectType.equals("jar")) {
-			CrawlerProject crawlerProject = crawlerProjectRepository.findById(projectId).get();
-			String crawlerProjectsJarDir = "crawler_projects_jar_dir";
-			SystemConfiguration systemConfig = systemConfigRepository.findById(crawlerProjectsJarDir).get();
+	private void handleCpeExtractionForJar(CrawlerProject crawlerProject, SystemConfiguration systemConfig) throws Exception {
+		if (crawlerProject != null ) {
+			//handleCpeExtractionForJar(crawlerProject, systemConfig);
+			String fileName = crawlerProject.getProjectName()
+					.concat("+")
+					.concat(crawlerProject.getProjectType());
 			
-			if (systemConfig == null) {
-				// Throw error here or raise alert
-				LOG.error("System Configuration of id {} is not found", crawlerProjectsJarDir);
-			}
+			sftpProcessManager.downloadFileFromHost(fileName, "ip-of-the-sftp-box");
 			
-			if (crawlerProject != null ) {
-				handleCpeExtractionForJar(crawlerProject, systemConfig);
-			} else {
-				// Throw error here or raise alert
-				LOG.error("Crawler Project of id {} is not found", projectId);
+			// Run the scanning of the file here
+			String jarDir = systemConfig.getConfigurationName()
+					.concat("/")
+					.concat(fileName);
+			
+			List<String> foundCpes = cpeExtractor.extractCpeForJar(jarDir);
+			if (foundCpes.size() > 0 || foundCpes != null) {
+				LOG.info("Found CPEs for project with name of {}", crawlerProject.getProjectName());
+				// TODO: Check vulnerabilities for the CPEs found
 			}
 		} else {
-			// TODO: Throw error here
-			LOG.error("Unsupported Project Type {} received", projectType);
-		}
-	}
-	
-	private void handleCpeExtractionForJar(CrawlerProject crawlerProject, SystemConfiguration systemConfig) throws FileSystemException {
-		String fileName = crawlerProject.getProjectName()
-				.concat("+")
-				.concat(crawlerProject.getProjectType());
-		
-		sftpHelper.downloadFileFromHost(fileName, "ip-of-the-sftp-box");
-		
-		// Run the scanning of the file here
-		String jarDir = systemConfig.getConfigurationName()
-				.concat("/")
-				.concat(fileName);
-		
-		List<String> foundCpes = cpeExtractor.extractCpeForJar(jarDir);
-		if (foundCpes.size() > 0 || foundCpes != null) {
-			LOG.info("Found CPEs for project with name of {}", crawlerProject.getProjectName());
-			// TODO: Check vulnerabilities for the CPEs found
+			// Throw error here or raise alert
+			throw new Exception();
 		}
 	}
 

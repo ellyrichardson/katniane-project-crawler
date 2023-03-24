@@ -1,4 +1,4 @@
-package com.katniane.projectcrawler.utility;
+package com.katniane.projectcrawler.service;
 
 import java.util.List;
 
@@ -17,11 +17,11 @@ import lombok.Setter;
 @Getter
 @Setter
 @Service
-public class SftpHelper {
+public class SftpProcessManager implements SftpProcessManagerService {
 	
 	private FileSystemManager manager;
 	
-	public SftpHelper() {
+	public SftpProcessManager() {
 		try {
 			this.manager = VFS.getManager();
 		} catch (FileSystemException e) {
