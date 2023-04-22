@@ -35,8 +35,8 @@ public class SftpProcessManager implements SftpProcessManagerService {
 		// TODO: Must pull these values from a config file accessible by the user
 		
 		String localDir = "/tmp/";
-		String username = "test";
-		String password = "password";
+		String username = "testuser"; // from the docker dir's .env file
+		String password = "testpassword"; // from the docker dir's .env file
 		
 		FileObject local = manager.resolveFile(System.getProperty("user.dir") + "/" + localDir + "vfsFile.txt");
 		FileObject remote = manager.resolveFile("sftp://" + username + ":" + password + "@" + remoteHost + "/" + remoteFile);
