@@ -17,7 +17,7 @@ public class CrawlerProject {
 	
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer knCrawlerProjectId;
+    private Integer id;
 	
 	private String projectName;
 	
@@ -28,7 +28,4 @@ public class CrawlerProject {
 	private ZonedDateTime createDateTime;
 	
 	private ZonedDateTime lastModifiedDateTime;
-	
-	private ZonedDateTime lastScannedDateTime;
-	
 }

@@ -38,8 +38,8 @@ public class SftpProcessManager implements SftpProcessManagerService {
 		String username = "testuser"; // from the docker dir's .env file
 		String password = "testpassword"; // from the docker dir's .env file
 		
-		FileObject local = manager.resolveFile(System.getProperty("user.dir") + "/" + localDir + "vfsFile.txt");
-		FileObject remote = manager.resolveFile("sftp://" + username + ":" + password + "@" + remoteHost + "/" + remoteFile);
+		FileObject local = manager.resolveFile(System.getProperty("user.dir") + "/" + localDir + remoteFile);
+		FileObject remote = manager.resolveFile("sftp://" + username + ":" + password + "@" + remoteHost + "/data/" + remoteFile);
 		
 		local.copyFrom(remote, Selectors.SELECT_SELF);
 		

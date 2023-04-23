@@ -14,9 +14,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.katniane.projectcrawler.coordination.CrawlerProjectConfigurationProcessorService;
+import com.katniane.projectcrawler.dataaccesslayer.CrawlerProjectArtifactRepository;
 import com.katniane.projectcrawler.dataaccesslayer.CrawlerProjectRepository;
 import com.katniane.projectcrawler.dataaccesslayer.SystemConfigurationRepository;
 import com.katniane.projectcrawler.domain.CrawlerProject;
+import com.katniane.projectcrawler.domain.CrawlerProjectArtifact;
 import com.katniane.projectcrawler.domain.SystemConfiguration;
 import com.katniane.projectcrawler.service.CpeExtractionManagerService;
 import com.katniane.projectcrawler.service.CpeExtractionManager;
@@ -31,6 +33,9 @@ public class ProjectCrawlerController {
 	private CrawlerProjectRepository crawlerProjectRepository;
 	
 	@Autowired
+	private CrawlerProjectArtifactRepository crawlerProjectArtifactRepository;
+	
+	@Autowired
 	private CpeExtractionManagerService cpeExtractor;
 	
 	@Autowired
@@ -41,11 +46,16 @@ public class ProjectCrawlerController {
 	
 	private static final Logger LOG = LoggerFactory.getLogger(ProjectCrawlerController.class);
 	
+	/*
+	 * TODO: Might have to modify params or add another parameter here for the `projectName` and `artifactName`
+	 *  This update will include new table that is foreign-keyed with the crawler_projects table
+	 *  and also update to the `scanRequest` logic below to utilize an object like CrawlerProjectArtifact
+	 * */
 	@GetMapping(value = "/scanRequest/{projectType}/{projectId}", produces = MediaType.APPLICATION_JSON_VALUE)
 	public void scanRequest(@PathVariable String projectType, @PathVariable Integer projectId) {
 		LOG.info("Received scan request for project {} of type {}", projectId, projectType);
 		try {
-			SystemConfiguration requestTypeConfig = crawlerProjectConfigurationProcessor.retrieveConfigForCrawlerProjectType(projectType, projectId);
+			SystemConfiguration requestTypeConfig = crawlerProjectConfigurationProcessor.retrieveConfigForCrawlerProjectType(projectType);
 			
 			CrawlerProject crawlerProject = crawlerProjectRepository.findById(projectId).get();
 			if (crawlerProject != null ) {
@@ -54,6 +64,8 @@ public class ProjectCrawlerController {
 				// Throw error here or raise alert
 				LOG.error("Crawler Project of id {} is not found", projectId);
 			}
+			
+			// TODO: somewhere here, add a logic to update the CrawlerProject last scan date
 			
 		} catch (FileSystemException e) {
 			// TODO Auto-generated catch block
@@ -65,19 +77,29 @@ public class ProjectCrawlerController {
 		
 	}
 	
+	/*
+	 * TODO: Looks into refining the logic for retrieving the right jar for a Crawler Project. This is because Crawler Projects
+	 * 	artifacts can have new names for newer artifacts, and the Crawler app must be able to retrieve those
+	 * */
 	private void handleCpeExtractionForJar(CrawlerProject crawlerProject, SystemConfiguration systemConfig) throws Exception {
 		if (crawlerProject != null ) {
 			//handleCpeExtractionForJar(crawlerProject, systemConfig);
-			String fileName = crawlerProject.getProjectName()
-					.concat("+")
-					.concat(crawlerProject.getProjectType());
 			
-			sftpProcessManager.downloadFileFromHost(fileName, "ip-of-the-sftp-box");
+			
+			CrawlerProjectArtifact crawlerProjectArtifact = crawlerProjectArtifactRepository.findByCrawlerProjectId(crawlerProject.getId());
+			
+			String fileDir = crawlerProject.getProjectName()
+					.concat("/")
+					.concat(crawlerProjectArtifact.getArtifactName())
+					.concat(crawlerProjectArtifact.getArtifactType());
+			
+			LOG.info("Retrieving file with name: {} from SFTP server", fileDir);
+			sftpProcessManager.downloadFileFromHost(fileDir, "0.0.0.0:22");
 			
 			// Run the scanning of the file here
-			String jarDir = systemConfig.getConfigurationName()
+			String jarDir = systemConfig.getConfigurationValue()
 					.concat("/")
-					.concat(fileName);
+					.concat(fileDir);
 			
 			List<String> foundCpes = cpeExtractor.extractCpeForJar(jarDir);
 			if (foundCpes.size() > 0 || foundCpes != null) {

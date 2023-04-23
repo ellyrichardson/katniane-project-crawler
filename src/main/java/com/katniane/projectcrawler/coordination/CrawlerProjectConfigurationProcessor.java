@@ -18,7 +18,7 @@ public class CrawlerProjectConfigurationProcessor implements CrawlerProjectConfi
 	private static final Logger LOG = LoggerFactory.getLogger(CrawlerProjectConfigurationProcessor.class);
 
 	@Override
-	public SystemConfiguration retrieveConfigForCrawlerProjectType(String projectType, Integer projectId) throws Exception {
+	public SystemConfiguration retrieveConfigForCrawlerProjectType(String projectType) throws Exception {
 		SystemConfiguration systemConfig = null;
 		String crawlerProjectsJarDir = "crawler_projects_jar_dir";
 		
